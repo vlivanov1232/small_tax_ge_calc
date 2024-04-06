@@ -1,7 +1,7 @@
 import secrets
 
 from pydantic import computed_field
-from pydantic.networks import HttpUrl, IPvAnyAddress
+from pydantic.networks import IPvAnyAddress
 from pydantic_settings import BaseSettings
 
 
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # Heroku config
     PORT: int = 8080
     WEB_SERVER_HOST: IPvAnyAddress = "0.0.0.0"
-    HEROKU_APP_DEFAULT_DOMAIN_NAME: Optional[HttpUrl] = None
+    HEROKU_APP_DEFAULT_DOMAIN_NAME: Optional[str] = None
 
     # Webhook config
     USE_WEBHOOK: bool = True
