@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import sys
 from datetime import datetime
@@ -19,6 +18,9 @@ from consts import CURRENCIES_LIST
 from settings import Settings
 
 from nbg_client import get_currency_by_date_and_cur
+
+
+import asyncio
 
 
 settings = Settings()
@@ -166,13 +168,13 @@ async def on_startup(bot: Bot) -> None:
     await bot.set_webhook(f"{settings.BASE_WEBHOOK_URL}{settings.WEBHOOK_PATH}", secret_token=settings.WEBHOOK_SECRET)
 
 
-async def main():
+def main():
     bot = Bot(token=settings.BOT_TOKEN, parse_mode="HTML")
     dp = Dispatcher()
     dp.include_router(income_router)
 
     if not settings.USE_WEBHOOK:
-        await dp.start_polling(bot)
+        asyncio.run(dp.start_polling(bot))
         return
 
     dp.startup.register(on_startup)
@@ -188,14 +190,9 @@ async def main():
 
     setup_application(app, dp, bot=bot)
 
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, str(settings.WEB_SERVER_HOST), settings.PORT)
-    await site.start()
-
-    # web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
+    web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    asyncio.run(main())
+    main()
