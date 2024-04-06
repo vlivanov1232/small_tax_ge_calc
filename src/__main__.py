@@ -190,7 +190,7 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, settings.WEB_SERVER_HOST, settings.PORT)
+    site = web.TCPSite(runner, str(settings.WEB_SERVER_HOST), settings.PORT)
     await site.start()
 
     # web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
