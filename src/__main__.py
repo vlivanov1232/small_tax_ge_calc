@@ -188,7 +188,12 @@ async def main():
 
     setup_application(app, dp, bot=bot)
 
-    web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, settings.WEB_SERVER_HOST, settings.PORT)
+    await site.start()
+
+    # web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
 
 
 if __name__ == "__main__":
