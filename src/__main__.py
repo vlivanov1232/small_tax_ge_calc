@@ -15,8 +15,8 @@ from aiogram.types import (
 )
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
-from src.consts import CURRENCIES_LIST
-from src.settings import Settings
+from consts import CURRENCIES_LIST
+from settings import Settings
 
 from nbg_client import get_currency_by_date_and_cur
 

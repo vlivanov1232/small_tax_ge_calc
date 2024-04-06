@@ -1,8 +1,11 @@
-from enum import property
-from pydantic import computed_field
-from pydantic_settings import BaseSettings
-from pydantic.networks import HttpUrl, IPvAnyAddress
 import secrets
+
+from pydantic import computed_field
+from pydantic.networks import HttpUrl, IPvAnyAddress
+from pydantic_settings import BaseSettings
+
+
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -11,7 +14,7 @@ class Settings(BaseSettings):
     # Heroku config
     PORT: int = 8080
     WEB_SERVER_HOST: IPvAnyAddress = "0.0.0.0"
-    HEROKU_APP_DEFAULT_DOMAIN_NAME: HttpUrl | None
+    HEROKU_APP_DEFAULT_DOMAIN_NAME: Optional[HttpUrl] = None
 
     # Webhook config
     USE_WEBHOOK: bool = True
@@ -19,6 +22,5 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: str = secrets.token_urlsafe()
 
     @computed_field
-    @property
-    def BASE_WEBHOOK_URL(self):
+    def BASE_WEBHOOK_URL(self) -> str | None:
         return f"https://{self.HEROKU_APP_DEFAULT_DOMAIN_NAME}"
