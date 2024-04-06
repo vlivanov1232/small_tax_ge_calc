@@ -190,7 +190,7 @@ def main():
 
     setup_application(app, dp, bot=bot)
 
-    web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
+    web.run_app(app, host=str(settings.WEB_SERVER_HOST), port=settings.PORT)
 
 
 if __name__ == "__main__":
