@@ -2,26 +2,30 @@ import asyncio
 import logging
 import sys
 from datetime import datetime
-from os import getenv
 
 from aiogram import Bot, Dispatcher, F, Router, html
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
-    Message,
-    ReplyKeyboardRemove,
-    ReplyKeyboardMarkup,
     KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
+from src.consts import CURRENCIES_LIST
+from src.settings import Settings
 
 from nbg_client import get_currency_by_date_and_cur
-from src.consts import CURRENCIES_LIST
 
+
+settings = Settings()
 
 income_router = Router()
 
-keyboard_list = [KeyboardButton(text=currency) for currency in CURRENCIES_LIST]
+KEYBOARD_LIST = [KeyboardButton(text=currency) for currency in CURRENCIES_LIST]
 
 
 class IncomeProcess(StatesGroup):
@@ -67,7 +71,7 @@ async def process_valid_date(message: Message, state: FSMContext) -> None:
         return
 
     if date_object < datetime(2016, 1, 1).date():
-        await message.reply(f"Раньше 2016 года я не могу узнать курс")
+        await message.reply("Раньше 2016 года я не могу узнать курс")
         await message.answer(
             "Введите дату получения дохода из банковского приложения в формате ДД.ММ.ГГГГ, например 25.01.2023",
             reply_markup=ReplyKeyboardRemove(),
@@ -76,9 +80,9 @@ async def process_valid_date(message: Message, state: FSMContext) -> None:
     await state.update_data(date=date_object)
     await state.set_state(IncomeProcess.currency)
     await message.answer(
-        f"Выберите валюту из предложенных",
+        "Выберите валюту из предложенных",
         reply_markup=ReplyKeyboardMarkup(
-            keyboard=[keyboard_list],
+            keyboard=[KEYBOARD_LIST],
             resize_keyboard=True,
         ),
     )
@@ -97,9 +101,9 @@ async def process_invalid_date(message: Message) -> None:
 async def process_currency(message: Message, state: FSMContext) -> None:
     if message.text not in CURRENCIES_LIST:
         await message.answer(
-            f"Выберите валюту из предложенных",
+            "Выберите валюту из предложенных",
             reply_markup=ReplyKeyboardMarkup(
-                keyboard=[keyboard_list],
+                keyboard=[KEYBOARD_LIST],
                 resize_keyboard=True,
             ),
         )
@@ -136,7 +140,7 @@ async def process_amount(message: Message, state: FSMContext) -> None:
         f": {html.bold(currency.currencies[0].rate)} ваш доход составил"
     )
     await message.answer(f"{html.code(calculate)} GEL")
-    await message.answer(f"Введите итоговый доход за прошлый отчетный период (пункт 15)")
+    await message.answer("Введите итоговый доход за прошлый отчетный период (пункт 15)")
 
 
 @income_router.message(IncomeProcess.answer)
@@ -158,12 +162,33 @@ async def process_answer(message: Message, state: FSMContext) -> None:
     await message.answer("Спасибо, что воспользовались моими услугами")
 
 
+async def on_startup(bot: Bot) -> None:
+    await bot.set_webhook(f"{settings.BASE_WEBHOOK_URL}{settings.WEBHOOK_PATH}", secret_token=settings.WEBHOOK_SECRET)
+
+
 async def main():
-    bot = Bot(token=getenv("TOKEN"), parse_mode="HTML")
+    bot = Bot(token=settings.BOT_TOKEN, parse_mode="HTML")
     dp = Dispatcher()
     dp.include_router(income_router)
 
-    await dp.start_polling(bot)
+    if not settings.USE_WEBHOOK:
+        await dp.start_polling(bot)
+        return
+
+    dp.startup.register(on_startup)
+
+    app = web.Application()
+
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=settings.WEBHOOK_SECRET,
+    )
+    webhook_requests_handler.register(app, path=settings.WEBHOOK_PATH)
+
+    setup_application(app, dp, bot=bot)
+
+    web.run_app(app, host=settings.WEB_SERVER_HOST, port=settings.PORT)
 
 
 if __name__ == "__main__":
