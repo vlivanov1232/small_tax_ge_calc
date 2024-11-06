@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F, Router, html
+from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -13,6 +14,7 @@ from aiogram.types import (
     ReplyKeyboardRemove,
 )
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram.enums import ParseMode
 from aiohttp import web
 from consts import CURRENCIES_LIST
 from settings import Settings
@@ -22,6 +24,7 @@ from nbg_client import get_currency_by_date_and_cur
 
 import asyncio
 
+logger = logging.getLogger(__name__)
 
 settings = Settings()
 
@@ -61,11 +64,16 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-@income_router.message(IncomeProcess.date, F.text.regexp(r"^(0[1-9]|1\d|2\d|3[01])\.(0[1-9]|1[0-2])\.\d{4}$"))
+@income_router.message(
+    IncomeProcess.date,
+    F.text.regexp(r"^(0[1-9]|1\d|2\d|3[01])\.(0[1-9]|1[0-2])\.\d{4}$"),
+)
 async def process_valid_date(message: Message, state: FSMContext) -> None:
     date_object = datetime.strptime(message.text, "%d.%m.%Y").date()
     if date_object > datetime.today().date():
-        await message.reply(f"Эх хотел бы я знать какой курс будет {message.text}, но не могу")
+        await message.reply(
+            f"Эх хотел бы я знать какой курс будет {message.text}, но не могу"
+        )
         await message.answer(
             "Введите дату получения дохода из банковского приложения в формате ДД.ММ.ГГГГ, например 25.01.2023",
             reply_markup=ReplyKeyboardRemove(),
@@ -125,7 +133,9 @@ async def process_amount(message: Message, state: FSMContext) -> None:
         if float(message.text) < 0:
             raise ValueError
     except ValueError:
-        await message.reply("Введите целое или дробное число больше 0 без знака валют и других символов")
+        await message.reply(
+            "Введите целое или дробное число больше 0 без знака валют и других символов"
+        )
         return
     state_dict = await state.get_data()
     date_str: datetime = state_dict.get("date")
@@ -151,13 +161,17 @@ async def process_answer(message: Message, state: FSMContext) -> None:
         if float(message.text) < 0:
             raise ValueError
     except ValueError:
-        await message.reply("Введите целое или дробное число больше 0 без знака валют и других символов")
+        await message.reply(
+            "Введите целое или дробное число больше 0 без знака валют и других символов"
+        )
         return
 
     state_dict = await state.get_data()
     income = state_dict.get("income")
 
-    result_message = await message.answer(f"Итого за год (15) = {html.code(round(income + float(message.text), 4))}")
+    result_message = await message.answer(
+        f"Итого за год (15) = {html.code(round(income + float(message.text), 4))}"
+    )
     await result_message.pin()
     await message.answer(f"За месяц (17) = {round(income, 4)}")
     await message.answer(f"Налог 1% (19) = {round(income * 0.01, 4)}")
@@ -165,20 +179,21 @@ async def process_answer(message: Message, state: FSMContext) -> None:
 
 
 async def on_startup(bot: Bot) -> None:
-    await bot.set_webhook(f"{settings.BASE_WEBHOOK_URL}{settings.WEBHOOK_PATH}", secret_token=settings.WEBHOOK_SECRET)
+    await bot.set_webhook(f"{settings.WEBHOOK_URL}{settings.WEBHOOK_PATH}", secret_token=settings.WEBHOOK_SECRET)
 
 
-def main():
-    bot = Bot(token=settings.BOT_TOKEN, parse_mode="HTML")
+def main() -> None:
     dp = Dispatcher()
     dp.include_router(income_router)
-
-    if not settings.USE_WEBHOOK:
+    bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    logger.info(f"{settings.IS_WEBHOOK=}")
+    if not settings.IS_WEBHOOK:
+        # And the run events dispatching
+        logger.info("Start with polling")
         asyncio.run(dp.start_polling(bot))
         return
-
+    logger.info("Try Webhook")
     dp.startup.register(on_startup)
-
     app = web.Application()
 
     webhook_requests_handler = SimpleRequestHandler(
@@ -190,6 +205,7 @@ def main():
 
     setup_application(app, dp, bot=bot)
 
+    logger.info("Webhook started")
     web.run_app(app, host=str(settings.WEB_SERVER_HOST), port=settings.PORT)
 
 
