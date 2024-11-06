@@ -12,15 +12,15 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
 
     # Heroku config
-    PORT: int = 8080
+    PORT: int = 3000
     WEB_SERVER_HOST: IPvAnyAddress = "0.0.0.0"
-    HEROKU_APP_DEFAULT_DOMAIN_NAME: Optional[str] = None
+    WEBHOOK_URL: Optional[str] = None
 
     # Webhook config
-    USE_WEBHOOK: bool = True
+    IS_WEBHOOK: bool = True
     WEBHOOK_PATH: str = "/"
     WEBHOOK_SECRET: str = secrets.token_urlsafe()
 
     @computed_field
     def BASE_WEBHOOK_URL(self) -> str | None:
-        return f"https://{self.HEROKU_APP_DEFAULT_DOMAIN_NAME}"
+        return f"https://{self.WEBHOOK_URL}"
